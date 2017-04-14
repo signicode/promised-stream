@@ -5,6 +5,11 @@ const path = require('path');
 const debug = require('debug')("run-tests");
 const fs = require("fs");
 
+process.on("unhandledRejection", (err) => {
+    console.error(err && err.stack || err);
+    debugger;
+});
+
 module.exports = (dirs, to) => {
     to = to || 10000;
     return Promise.all(
@@ -68,7 +73,7 @@ if (!module.parent) {
                 let err = 0;
                 results.forEach((test) => {
                     let line = test.error ? "✘" : "✔";
-                    line += " " + test.name;
+                    line += " " + test.testFile.replace(cwd, '');
                     console.error(line);
                     if (test.error) {
                         err++;
