@@ -8,6 +8,9 @@
   },
   "author": "",
   "license": "GPL-3.0",
+  "scripts": {
+    "test": "node run-test.js test/readable/ && node run-test.js test/writable/"
+  },
   "devDependencies": {
     "cucumber": "^2.0.0-rc.9",
     "scramjet": "^2.5.2"
