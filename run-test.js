@@ -7,7 +7,7 @@ const fs = require("fs");
 
 process.on("unhandledRejection", (err) => {
     console.error(err && err.stack || err);
-    debugger;
+    process.exit(1);
 });
 
 module.exports = (dirs, to) => {
@@ -44,15 +44,13 @@ module.exports = (dirs, to) => {
                 }
             )
             .map(
-                (test) => {
-                    return Promise.race(
-                            test.execution,
-                            new Promise((s,j) => setTimeout(j, to).unref())
-                        )
-                        .catch((e) => (debug("test failed", test.testFile, e && e.stack), {error: e}))
-                        .then((out) => (debug("test succeeded", test.testFile), {outcome: out}))
-                        .then((ext) => Object.assign(test, ext));
-                }
+                (test) => Promise.race([
+                        test.execution,
+                        new Promise((s,j) => setTimeout(j, to).unref())
+                    ])
+                    .then((out) => (debug("test succeeded", test.testFile), {outcome: out}))
+                    .then((ext) => Object.assign(test, ext))
+                    .catch((e) => (debug("test failed", test.testFile, e && e.stack), Promise.reject(e)))
             )
             .accumulate(
                 (results, test) => results.push(test), []
