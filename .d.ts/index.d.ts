@@ -1,69 +1,154 @@
-declare module "promised-stream";
+declare module "promised-stream" {
 
-import { Readable, Duplex, Transform, Writable, ReadableOptions, WritableOptions, TransformOptions } from 'stream';
+    import { Readable, Duplex, Transform, Writable, ReadableOptions, WritableOptions, TransformOptions, TransformCallback } from 'stream';
+    import { EventEmitter } from "events";
 
-interface PromisedReadableOptions<T> extends ReadableOptions {
-    async read?(this: PromisedReadable<T>, size: number): T
-}
+    interface PromiseEmitter {
 
-export class PromisedReadable<T> extends Readable {
-    constructor(options : PromisedReadableOptions<T>);
 
-    async _read?(this: PromisedReadable<T>, size: number): T
+        whence(event: string): Promise<any>;
+        raise(error: Error): Promise<any>;
+        catch(handler: (error: Error) => Promise<any>): this;
+    }
+
+    interface BasePromiseReadableOptions<T> {
+        highWaterMark?: number;
+        encoding?: string;
+        objectMode?: boolean;
+        autoDestroy?: boolean;
+        read?(this: PromiseReadable<T>, size: number): T | Promise<T>
+        transforms?: [] | [(data: T) => Promise<any>?, (e: Error) => Promise<any>?] | [[(data: T) => Promise<any>, (e: Error) => Promise<any>?], ...[(data: any) => Promise<any>, (e: Error) => Promise<any>?]];
+    }
+
+    interface PromiseReadableOptions<T> extends BasePromiseReadableOptions<T> {
+        destroy?(this: PromiseReadable<T>, error: Error | null): Promise<void>;
+    }
+
+    class BasePromiseReadable<T> extends Readable {
+        constructor(options: PromiseReadableOptions<T>);
+
+        _read(size: number): Promise<T>
+
+        whenEnd(): Promise<void>
+        whenRead(size: number): Promise<T>
+        tap(): TappedPromiseReadable<T>
+        
+        pipe<S>(destination: PromiseTransform<T, S>, options?: { end?: boolean; }): PromiseReadable<S>
+        pipe<T extends NodeJS.WritableStream>(destination: T, options?: { end?: boolean; }): T;
+    }
     
-    async whenEnd(): void
-    async whenRead(size: number): T
-    catch(handler: (error: Error) => Promise<T>) : PromisedReadable<T>
+    export class PromiseReadable<T> extends BasePromiseReadable<T> implements PromiseEmitter {
+        whence(event: string): Promise<any>;
+        raise(error: Error): Promise<T>;
+        catch(handler: (error: Error, data: any) => Promise<T>): this
+    }
 
-    tap() : TappedPromiseReadable<T, this>
-    pipe(to: PromisedTransform<S>) : PromisedReadable<S>
+    class TappedPromiseReadable<T> extends PromiseReadable<T> {
+        /** @override */
+        pipe<S, Z extends PromiseTransform<T, S>>(destination: Z, options?: { end?: boolean; }): Z
+    }
+
+    interface BasePromiseWritableOptions<T> {
+        highWaterMark?: number;
+        decodeStrings?: boolean;
+        defaultEncoding?: string;
+        objectMode?: boolean;
+        emitClose?: boolean;
+        autoDestroy?: boolean;
+        write?(this: PromiseWritable<T>, data: T, encoding?: string): Promise<void>;
+        writev?(this: PromiseWritable<T>, chunks: Array<{ chunk: T , encoding?: string }>): Promise<void>;
+        final?(this: PromiseWritable<T>): Promise<void>;
+    }
+
+    interface PromiseWritableOptions<T> extends BasePromiseWritableOptions<T> {
+        destroy?(this: PromiseWritable<T>, error: Error | null): Promise<void>;
+    }
+
+    class BasePromiseWritable<T> extends Writable {
+        constructor(options: PromiseWritableOptions<T>);
+
+        _write(this: PromiseWritable<T>, data: T, encoding?: string): Promise<void>;
+
+        whenWrote(data: T, encoding?: string): Promise<void>;
+        whenFinish(): Promise<void>;
+    }
+
+    export class PromiseWritable<T> extends BasePromiseWritable<T> {
+        whence(event: string): Promise<any>;
+        raise(error: Error): Promise<any>;
+        catch(handler: (error: Error) => Promise<void>)
+    }
+
+    interface PromiseTransformOptions<T, S> extends BasePromiseReadableOptions<T>, BasePromiseWritableOptions<S> {
+        flush?(this: PromiseTransform<T, S>): Promise<void>;
+        transform?(this: PromiseTransform<T, S>, data: T, encoding: string): Promise<S>;
+        transforms?: [] | [(data: T) => Promise<any>?, (e: Error) => Promise<any>?] | [[(data: T) => Promise<any>, (e: Error) => Promise<any>?], ...[(data: any) => Promise<any>, (e: Error) => Promise<any>?], [(data: T) => Promise<S>, (e: Error) => Promise<S>?]];
+    }
+
+    class BasePromiseTransform<T, S> extends Transform implements BasePromiseReadable<T>, BasePromiseWritable<S> {
+        constructor(options: PromiseTransformOptions<T, S>)
+
+        _getTransforms() : [(data: T) => Promise<S>] | [(data: T) => Promise<any>, ...(data: any) => Promise<any>, (data: any) => Promise<S>];
+
+        _transform(this: PromiseTransform<T, S>, data: T): Promise<S>;
+
+        _write(this: PromiseWritable<S>, data: S, encoding?: string): Promise<void>;
+        whenWrote(data: S, encoding: string): Promise<void>;
+        whenFinish(): Promise<void>;
+
+        _read(this: PromiseReadable<T>, size: number): Promise<T>
+        whenEnd(): Promise<void>
+        whenRead(size: number): Promise<T>
+
+        pipe<U>(destination: PromiseTransform<S, U>, options?: { end?: boolean; }): PromiseTransform<T, U>
+        pipe<T extends NodeJS.WritableStream>(destination: T, options?: { end?: boolean; }): T;
+
+        tap(): TappedPromiseTransform<T, S>;
+
+        _flush(this: PromiseTransform<T, S>): Promise<void>;
+        _destroy(this: PromiseWritable<T>, error: Error | null): Promise<void>;
+    }
+
+    export class PromiseTransform<T,S> extends BasePromiseTransform<T, S> {
+        catch(handler: (error: Error, data: T) => Promise<S>): PromiseTransform<T,S>
+    }
+
+    class TappedPromiseTransform<T, S> extends PromiseTransform<T, S> {
+        pipe<U>(destination: PromiseTransform<S, U>, options?: { end?: boolean; }): PromiseTransform<T, U>
+        pipe<U, Z extends PromiseTransform<T, U>>(destination: Z, options?: { end?: boolean; }): Z
+    }
+
+    interface PromiseDuplexOptions<T, S> extends BasePromiseReadableOptions<T>, BasePromiseWritableOptions<S> {
+        allowHalfOpen?: boolean;
+        readableObjectMode?: boolean;
+        writableObjectMode?: boolean;
+
+        read?(this: PromiseReadable<T>, size: number): T | Promise<T>
+        write?(this: PromiseWritable<S>, data: S, encoding?: string): Promise<void>;
+        writev?(this: PromiseWritable<S>, chunks: Array<{ chunk: S, encoding?: string }>): Promise<void>;
+        final?(this: PromiseWritable<S>): Promise<void>;
+
+        destroy?(this: PromiseDuplex<T, S>, error: Error | null): Promise<void>;
+     }
+
+    export class PromiseDuplex<T, S> extends Duplex implements BasePromiseReadable<T>, BasePromiseWritable<S> {
+        constructor(options: PromiseDuplexOptions<T, S>)
+
+        _write(this: PromiseDuplex<T, S>, data: S, encoding?: string): Promise<void>;
+
+        whenWrote(data: S, encoding: string): Promise<void>;
+        whenFinish(): Promise<void>;
+
+        tap(): TappedPromiseReadable<T>
+
+        _read(size: number): Promise<T>
+        whenEnd(): Promise<void>
+        whenRead(size: number): Promise<T>
+        
+        pipe<U>(destination: PromiseTransform<T, U>, options?: { end?: boolean; }): PromiseReadable<U>
+        pipe<T extends NodeJS.WritableStream>(destination: T, options?: { end?: boolean; }): T;
+
+        catch(handler: (error: Error) => Promise<void>): PromiseDuplex<T,S>
+    }
+
 }
-
-class TappedPromiseReadable<T, Z extends PromiseTransform = PromisedTransform> extends PromisedReadable<T> {
-    pipe(to: Z<S>) : Z<S>
-}
-
-
-interface PromisedWritableOptions<T> extends WritableOptions {
-    async write?(this: PromisedWritable<T>, data: T): void;
-}
-
-export class PromisedWritable<T> extends Writable {
-    constructor(options : PromisedWritableOptions<T>);
-
-    async _write?(this: PromisedWritable<T>, data: T): void;
-
-    async whenWrote(data: T) : void;
-    async whenFinish() : void;
-    catch(handler: (error: Error) => Promise<void>)
-}
-
-
-interface PromisedTransformOptions<T, S> extends TransformOptions {
-    async transform?(this: PromisedTransform<T, S>, data: T): S;
-}
-
-export class PromisedTransform<T,S> extends Transform implements PromisedDuplex<T,S> {
-    constructor(options : PromisedTransformOptions<T,S>)
-
-    async _transform?(this: PromisedTransform<T, S>, data: T): S;
-
-    tap() : TappedPromiseTransform<T,S>
-    pipe(to: PromisedTransform<Z>) : PromisedTransform<T,Z>
-}
-
-class TappedPromiseTransform<T,S, Z extends PromisedTransform> extends PromisedTransform<T,S> implements TappedPromisedReadable<T, Z> {}
-
-interface PromisedDuplexOptions<T,S> extends PromisedReadableOptions<T>, PromisedWritableOptions<S> {}
-
-export class PromisedDuplex<T,S> extends Duplex implements PromisedReadable<T>, PromisedWritable<S> {
-    constructor(options : PromisedDuplexOptions<T,S>)
-
-    async whenWrote(data: T) : void;
-    async whenFinish() : void;
-    async whenEnd(): void
-    async whenRead(size: number): T
-    catch(handler: (error: Error, entry: T) => Promise<S>)
-}
-
-

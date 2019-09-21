@@ -11,6 +11,7 @@
   "types": "./.d.ts/index.d.ts",
   "devDependencies": {
     "cucumber": "^2.0.0-rc.9",
+    "eslint-config-scramjet": "^2.0.1",
     "scramjet": "^2.5.2",
     "tslint": "^5.20.0"
   },
