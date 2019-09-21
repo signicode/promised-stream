@@ -1,11 +1,10 @@
-#!/usr/bin/env node
 
 const {PromisedDuplex} = require("../../");
 const {DataStream} = require("scramjet");
-const assert = require('assert');
+const assert = require("assert");
 
 const wdata = [1,2,3,4,5];
-const rdata = ['a','b','c','d','e'];
+const rdata = ["a","b","c","d","e"];
 
 // synchronous readable
 module.exports =
@@ -32,10 +31,10 @@ module.exports =
             str.pipe(new DataStream())
                 .accumulate((arr, item) => arr.push(item), [])
         ])
-        .then(
-            (arr) => {
-                assert.equal(arr[0].reduce((a, i) => a + i, 0), 15);
-                assert.equal(arr[1].join('-'), 'a-b-c-d-e');
-            }
-        );
+            .then(
+                (arr) => {
+                    assert.strictEqual(arr[0].reduce((a, i) => a + i, 0), 15);
+                    assert.strictEqual(arr[1].join("-"), "a-b-c-d-e");
+                }
+            );
     };

@@ -1,8 +1,7 @@
-#!/usr/bin/env node
 
 const {PromisedWritable} = require("../../");
 const {DataStream} = require("scramjet");
-const assert = require('assert');
+const assert = require("assert");
 
 const data = [1,2,3,4,5];
 
@@ -20,9 +19,9 @@ module.exports =
             .on("error", (err) => rej(err))
             .on("end", () => res(ret));
     })
-    .then(
-        (arr) => {
-            console.log(arr);
-            assert.equal(arr.reduce((a, i) => a + i, 0), 15);
-        }
-    );
+        .then(
+            (arr) => {
+                console.log(arr);
+                assert.strictEqual(arr.reduce((a, i) => a + i, 0), 15);
+            }
+        );

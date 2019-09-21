@@ -1,8 +1,7 @@
-#!/usr/bin/env node
 
 const {MultiStream, DataStream} = require("scramjet");
-const path = require('path');
-const debug = require('debug')("run-tests");
+const path = require("path");
+const debug = require("debug")("run-tests");
 const fs = require("fs");
 
 process.on("unhandledRejection", (err) => {
@@ -20,13 +19,13 @@ module.exports = (dirs, to) => {
                     fs.readdir(dir, (err, list) => err ? rej(err) : res(list));
                 }
             )
-            .then(
-                (list) => {
-                    return DataStream.fromArray(list)
-                        .map((file) => path.join(dir, file))
-                        .filter((file) => file[0] !== '.');
-                }
-            )
+                .then(
+                    (list) => {
+                        return DataStream.fromArray(list)
+                            .map((file) => path.join(dir, file))
+                            .filter((file) => file[0] !== ".");
+                    }
+                )
         )
     ).then(
         (lists) => new MultiStream(lists)
@@ -45,9 +44,9 @@ module.exports = (dirs, to) => {
             )
             .map(
                 (test) => Promise.race([
-                        test.execution,
-                        new Promise((s,j) => setTimeout(j, to).unref())
-                    ])
+                    test.execution,
+                    new Promise((s,j) => setTimeout(j, to).unref())
+                ])
                     .then((out) => (debug("test succeeded", test.testFile), {outcome: out}))
                     .then((ext) => Object.assign(test, ext))
                     .catch((e) => (debug("test failed", test.testFile, e && e.stack), Promise.reject(e)))
@@ -62,16 +61,16 @@ module.exports = (dirs, to) => {
 if (!module.parent) {
     let cwd = process.cwd();
     module.exports(
-            process.argv.slice(2).map(
-                (dir) => path.resolve(cwd, dir)
-            )
+        process.argv.slice(2).map(
+            (dir) => path.resolve(cwd, dir)
         )
+    )
         .then(
             (results) => {
                 let err = 0;
                 results.forEach((test) => {
                     let line = test.error ? "✘" : "✔";
-                    line += " " + test.testFile.replace(cwd, '');
+                    line += " " + test.testFile.replace(cwd, "");
                     console.error(line);
                     if (test.error) {
                         err++;
