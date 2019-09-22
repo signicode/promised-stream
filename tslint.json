@@ -1,0 +1,19 @@
+{
+    "defaultSeverity": "error",
+    "extends": [
+        "tslint:recommended"
+    ],
+    "jsRules": {},
+    "rules": {
+        "variable-name": {
+            "options": [
+                "allow-leading-underscore"
+            ]
+        },
+        "max-classes-per-file": false
+    },
+    "linterOptions": {
+        "exclude": ["node_modules/"]
+    },
+    "rulesDirectory": []
+}
